@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  django_backend:
+    build:
+      context: ./django_backend
+      dockerfile: ../docker/Dockerfile.django
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./django_backend:/app
+      - django_media:/app/media
+    environment:
+      - DJANGO_SETTINGS_MODULE=ecom_backend.settings
+      - DJANGO_DEBUG=True
+      - NODE_STOCK_URL=http://node_stock:5001/api/update-stock
+    command: >
+      bash -c "python manage.py migrate &&
+               python manage.py seed_db &&
+               python manage.py runserver 0.0.0.0:8000"
+
+  node_stock:
+    build:
+      context: ./node_stock
+      dockerfile: ../docker/Dockerfile.node
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./node_stock:/app
+    environment:
+      - PORT=5001
+      - SIMULATE_TRAFFIC=true
+    command: npm start
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/Dockerfile.react
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - django_backend
+      - node_stock
+
+volumes:
+  django_media:
